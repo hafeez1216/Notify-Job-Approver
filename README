@@ -1,1 +1,2 @@
 This module is a custom module that will send notification to job approvers whenever there is any job is posted on site.
+The application made use of PHPMailer class to send emails. You have to download phpmailer class and put it here in module folder.
