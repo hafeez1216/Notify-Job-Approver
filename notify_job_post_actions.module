@@ -1,0 +1,88 @@
+<?php
+// $Id: notify_job_post_actions.module,v 1 2010/12/15 18:59:11 rightchoice2c_me Exp $
+
+/**
+ * ========= Copyright Notice ========================= 
+ *
+ * @file : notify_job_post_actions.module
+ * Drupal Functions : notify_job_post_actions_action_info, notify_job_post_actions_set_status_action
+ * Private Functions : _notify_approver
+ * Created BY : Abdul Hafeez
+ * Created Date : 14-Dec-2010
+ * Exposes Drupal actions for sending Job Post messages to Job Approver.
+ */
+
+/**
+ * Implementation of hook_action_info().
+ */
+function notify_job_post_actions_action_info() {
+  return array(
+    'notify_job_post_actions_set_status_action' => array(
+      'type' => 'node',
+      'description' => t('Notify Job Approver'),
+      'configurable' => FALSE,
+      'hooks' => array(
+        'nodeapi' => array('insert', 'update'),
+      ),
+    ),
+  );
+}
+
+
+/**
+ * Implementation of a configurable Drupal action.
+ * Sends an email.
+ */
+function notify_job_post_actions_set_status_action(&$object, $context = array()) {
+  global $user;  
+  $node = $object;
+  if (empty($object)) {
+   $node = $context['node'];
+  }
+
+  if (isset($node)) {
+    $get_job_approver_email = db_result(db_query("SELECT mail FROM {users} u INNER JOIN {users_roles} ur ON u.uid = ur.uid WHERE ur.rid IN (SELECT rid FROM {role} WHERE name = 'job approver')"));
+    if ($get_job_approver_email) {
+      $recipient = $get_job_approver_email;
+      $response = _notify_approver($recipient, $node);
+      if ($response == 'Sent') {
+        drupal_set_message('Job Approver has been notified.');
+      } else {
+        drupal_set_message('There was some problem in sending notification email to Job Approver.');
+      }
+    }
+  }  
+}
+
+/**
+ * Implementation of a private function.
+ * Sends an email.
+ */
+function _notify_approver($recipient, $node) {
+  global $base_url;
+  $site_name = variable_get('site_name', 'Drupal');
+
+  require_once 'class.PHPMailer.php';
+  $mail = new PHPMailer();
+  $mail->IsSMTP();
+  $mail->Host = SMTP_HOST;
+  $mail->SMTPAuth = false;
+  $mail->To = $recipient;
+  $mail->From = JOB_EMAIL;
+  $mail->FromName = $site_name . ' Jobs';			
+  $mail->AddAddress($recipient);
+  $mail->WordWrap = 100;
+  $mail->IsHTML(true);
+  $mail->Subject = 'A New Job has been posted in Queue';  
+  $mail->Body .= 'Please click below link to login in ' . $site_name . ' website with your credentials and click Job Queue link to see list of jobs in queue<br/>';
+  $mail->Body .= l($node->title, $base_url . '/user');
+  
+  if(!$mail->Send()) {
+    $return = 'There was some error in notifying Job Approver.';
+    watchdog('error', 'There was some error in notifying Job Approver, sending email to ' . $recipient . ' failed');
+  } else {
+    watchdog('action', 'Sending email to ' . $recipient);
+    $return = 'Sent';    
+  } 
+  return $return;
+}
