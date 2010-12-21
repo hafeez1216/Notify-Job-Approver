@@ -1,0 +1,7 @@
+; $Id: notify_job_post_actions.info,v 1 2010/12/15 18:59:11 rightchoice2c_me Exp $
+name = Notify Job Approver
+description = Send Email to Job Approver Once Job is posted.
+core = 6.x
+version = "6.x"
+
+
